@@ -215,6 +215,11 @@ async function handleActivation(ws: any) {
   }
 }
 
+// Alias for audio_end event - same as handleRecordingEnd
+async function handleTranscription(ws: any) {
+  return handleRecordingEnd(ws);
+}
+
 async function handleRecordingEnd(ws: any) {
   if (glassesManager.getState() !== 'LISTENING') {
     console.log('[RecordingEnd] Ignored - not in LISTENING state');
