@@ -22,9 +22,12 @@ Bridge cloud per collegare Even Realities G2 smart glasses a OpenClaw AI assista
 - **Cloud-deployed**: Accessibile da ovunque, non solo localhost
 - **WebSocket bidirezionale**: Comunicazione real-time con gli occhiali
 - **Audio LC3 → Whisper**: Trascrizione italiana
+- **Streaming response**: Parole visualizzate man mano che arrivano da OpenClaw
 - **Dashboard web**: Monitora stato, testa comandi, vedi log
-- **Paginazione display**: Gestione testi lunghi su HUD
+- **Paginazione display**: Gestione testi lunghi su HUD con navigazione tap
 - **State machine**: IDLE → LISTENING → TRANSCRIBING → WAITING → DISPLAYING
+- **Error handling completo**: Try/catch ovunque, messaggi chiari nel HUD
+- **Timeout management**: 30s recording max, 15s transcription, 30s OpenClaw response
 
 ## 🚀 Deploy Rapido
 
@@ -94,6 +97,13 @@ pm2 start dist/server.js --name even-bridge
 
 ## 📱 Configurazione Even G2
 
+### Prerequisiti
+- Even Realities G2 (hardware)
+- Beta app Even Realities (TestFlight/Google Play — non quella normale)
+- Accesso al Discord Even Realities (per troubleshooting)
+
+### Setup Plugin
+
 1. **Installa Even Hub CLI**:
 ```bash
 npm install -g @evenrealities/evenhub-cli
@@ -101,19 +111,47 @@ npm install -g @evenrealities/evenhub-cli
 
 2. **Configura il plugin** per puntare al tuo bridge:
 ```javascript
-// even-config.js
+// plugin-config.js
 export default {
-  plugins: [{
-    name: 'OpenClaw Bridge',
-    websocketUrl: 'wss://your-app.onrender.com/ws'
-  }]
-}
+  name: 'OpenClaw Bridge',
+  websocketUrl: 'wss://your-app.onrender.com/ws',
+  
+  onStart(ctx) {
+    console.log('Plugin started');
+  },
+  
+  onTouchBarEvent(event, ctx) {
+    // Forward events to bridge
+    ctx.ws.send(JSON.stringify({
+      type: 'touchbar',
+      event: event  // LONG_PRESS_START, LONG_PRESS_END, DOUBLE_TAP, TAP
+    }));
+  },
+  
+  onAudioData(data, seq, ctx) {
+    // Forward audio chunks
+    ctx.ws.send(JSON.stringify({
+      type: 'audio_chunk',
+      data: data.toString('base64'),
+      sequence: seq
+    }));
+  }
+};
 ```
 
 3. **Flash sulle G2**:
 ```bash
 evenhub-cli start
 ```
+
+## 🎯 Interazioni G2
+
+| Gesture | Azione |
+|---------|--------|
+| **Long Press** | Attiva registrazione audio (🎤 Sto ascoltando...) |
+| **Release Long Press** | Ferma registrazione, invia a OpenClaw (⏳ Elaboro...) |
+| **Double Tap** | Annulla / Esci (👋 Arrivederci) |
+| **Tap** | Pagina successiva (quando visualizzando risposta) |
 
 ## 🔌 API Endpoints
 
@@ -125,6 +163,107 @@ evenhub-cli start
 | `/api/reset` | POST | Resetta sessione |
 | `/ws` | WS | WebSocket per Even G2 |
 
+### WebSocket Message Format
+
+**Client → Server:**
+```json
+{ "type": "touchbar", "event": "LONG_PRESS_START" }
+{ "type": "audio_chunk", "data": "base64...", "sequence": 0 }
+{ "type": "audio_end" }
+{ "type": "text_input", "text": "messaggio di test" }
+```
+
+**Server → Client:**
+```json
+{ "type": "status", "message": "🤖 Pronto" }
+{ "type": "display", "text": "risposta...", "page": 1, "total": 3 }
+{ "type": "mic", "enabled": true }
+{ "type": "clear" }
+{ "type": "error", "message": "❌ Errore" }
+```
+
+## 🧪 Test su Hardware Reale (Fase 6)
+
+### Test Progressivi
+
+1. **Test text sending** (hardcoded):
+   ```javascript
+   // Invia dal server al G2
+   ws.send(JSON.stringify({
+     type: 'display',
+     text: 'Test OK',
+     page: 1,
+     total: 1
+   }));
+   ```
+
+2. **Test mic activation**:
+   - Long press → dovrebbe apparire "🎤 Sto ascoltando..."
+   - Verifica nel log server che arrivino audio_chunk
+
+3. **Test trascrizione**:
+   - Parla chiaramente per 3-5 secondi
+   - Rilascia long press
+   - Verifica "⏳ Elaboro..." → ricezione testo
+
+4. **Test OpenClaw response**:
+   - La risposta dovrebbe apparire nel HUD
+   - Verifica streaming (parole che appaiono progressivamente)
+
+5. **Test end-to-end**:
+   - Flusso completo: touch → audio → trascrizione → OpenClaw → display
+
+### Calibrazione Display (Fase 6.3)
+
+Modifica `src/config.ts` per adattare al G2:
+
+```typescript
+export const config = {
+  displayWidth: 488,    // Valore demo, potrebbe variare
+  linesPerScreen: 5,    // Default, meno = font più grande
+  fontSize: 21,         // Sperimenta 18-24 per leggibilità
+};
+```
+
+Testa con testi lunghi e corti per trovare il bilanciamento ottimale.
+
+## 🎨 UX Refinements (Fase 7)
+
+### 7.1 Feedback Visivo Immediato ✅
+Implementato: subito dopo long press appare "🎤 Sto ascoltando..."
+
+### 7.2 Risposta in Streaming ✅
+Implementato: parole appaiono man mano che arrivano da OpenClaw
+
+### 7.3 Navigazione Pagine ✅
+Implementato: tap durante DISPLAYING per cambiare pagina
+
+### 7.4 Timeout ✅
+Implementati:
+- Recording: 30s max
+- Transcription: 15s max
+- OpenClaw: 30s max
+- Auto-reset: 60s dopo display
+
+## ⚠️ Possibili Blocchi
+
+### LC3 Decoding
+- **Problema**: LC3 non è supportato nativamente da Whisper
+- **Soluzione**: ffmpeg come fallback
+- **Fallback**: Se ffmpeg non disponibile, errore chiaro nel HUD
+
+### WebSocket OpenClaw
+- **Problema**: Protocollo non documentato pubblicamente
+- **Soluzione**: Reverse engineering dal codice sorgente OpenClaw
+- **Implementazione**: Supporta JSON messages (chunk, response, complete)
+
+### Latenza Totale
+- **Attesa**: 3-5 secondi tipici (Mic → STT → OpenClaw → Display)
+- **Gestione**: Feedback intermedi nel HUD per non far pensare a crash
+  - "🎤 Sto ascoltando..."
+  - "⏳ Elaboro..."
+  - "🤖 Rispondo..."
+
 ## 💻 Sviluppo Locale
 
 ```bash
@@ -133,37 +272,60 @@ npm install
 
 # 2. Configura env
 cp .env.example .env
-# Aggiungi OPENAI_API_KEY
+# Aggiungi OPENAI_API_KEY e verifica OPENCLAW_WS
 
-# 3. Dev mode (hot reload)
+# 3. Installa ffmpeg
+brew install ffmpeg  # macOS
+# oppure
+sudo apt-get install ffmpeg  # Ubuntu
+
+# 4. Dev mode (hot reload)
 npm run dev
 
-# 4. Apri http://localhost:3000 per dashboard
+# 5. Apri http://localhost:3000 per dashboard
 ```
 
-## 🎯 Interazioni G2
+## 🌐 Dashboard
 
-| Gesture | Azione |
-|---------|--------|
-| **Long Press** | Attiva registrazione audio |
-| **Release Long Press** | Ferma registrazione, invia a OpenClaw |
-| **Double Tap** | Annulla / Esci |
-| **Tap** | Pagina successiva (quando visualizzando risposta) |
+Dopo il deploy avrai:
+- **Dashboard**: `https://even-openclaw-bridge.onrender.com`
+- **WebSocket**: `wss://even-openclaw-bridge.onrender.com/ws`
+- **Health API**: `https://even-openclaw-bridge.onrender.com/health`
+
+La dashboard mostra:
+- Stato connessione (Server, Occhiali, OpenClaw)
+- Sessione attiva (stato, ultima trascrizione, ultima risposta)
+- Test manuale (invia comandi testuali)
+- Log in tempo reale
+
+## 📊 Timeline Realistica
+
+| Giorno | Obiettivo |
+|--------|-----------|
+| 1 | Setup + comprensione SDK + primo plugin visibile nel simulatore |
+| 2 | Plugin scheletro con eventi touchbar funzionanti |
+| 3 | Audio pipeline + Whisper integration |
+| 4 | OpenClaw client + integrazione completa in simulatore |
+| 5 | Test su hardware reale + fix bug |
+| 6 | UX polish + stabilità |
+
+Se il LC3 decoding si blocca, aggiungi 1-2 giorni.
 
 ## 📝 TODO / Roadmap
 
-- [ ] Integrazione SDK Even Hub ufficiale
+- [x] Server Express con WebSocket
+- [x] Audio pipeline LC3 → Whisper
+- [x] OpenClaw proxy con streaming
+- [x] State machine completa
+- [x] Error handling robusto
+- [x] Timeout management
+- [x] Dashboard web
+- [x] Render deployment config
+- [ ] Integrazione SDK Even Hub ufficiale (quando disponibile)
 - [ ] LC3 native decoder (senza ffmpeg)
 - [ ] Autenticazione WebSocket (API key)
 - [ ] Sessioni multi-utente
-- [ ] History conversazioni
-- [ ] Streaming risposte (parola per parola)
-
-## ⚠️ Note
-
-- **LC3 Decoding**: Richiede ffmpeg installato sul server
-- **OpenClaw Gateway**: Deve essere accessibile pubblicamente (o stessa rete del server)
-- **Whisper**: Richiede API key OpenAI (costo ~$0.006/minuto di audio)
+- [ ] History conversazioni persistente
 
 ## 📄 License
 

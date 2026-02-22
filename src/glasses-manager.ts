@@ -57,6 +57,10 @@ export class GlassesManager {
     return this.connectedAt;
   }
 
+  getCurrentPage(): number {
+    return this.currentPage;
+  }
+
   paginateText(text: string): string[] {
     const charsPerLine = Math.floor(config.displayWidth / (config.fontSize * 0.6));
     const charsPerPage = charsPerLine * config.linesPerScreen;
@@ -95,6 +99,18 @@ export class GlassesManager {
       return {
         text: this.pages[this.currentPage],
         page: this.currentPage + 1,
+        total: this.pages.length
+      };
+    }
+    return null;
+  }
+
+  goToFirstPage(): { text: string; page: number; total: number } | null {
+    if (this.pages.length > 0) {
+      this.currentPage = 0;
+      return {
+        text: this.pages[0],
+        page: 1,
         total: this.pages.length
       };
     }
