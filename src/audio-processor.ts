@@ -2,12 +2,11 @@ import { spawn } from 'child_process';
 import { config } from './config.js';
 import FormData from 'form-data';
 
-export class AudioPipeline {
+export class AudioProcessor {
   private chunks: Buffer[] = [];
   private sequenceNumbers: number[] = [];
 
   addChunk(data: Buffer, seq: number): void {
-    // Insert in correct order based on sequence number
     const insertIndex = this.sequenceNumbers.findIndex(s => s > seq);
     if (insertIndex === -1) {
       this.chunks.push(data);
@@ -23,7 +22,7 @@ export class AudioPipeline {
       const wavBuffer = await this.convertLC3toWAV();
       return await this.whisperTranscribe(wavBuffer);
     } catch (error) {
-      console.error('Transcription error:', error);
+      console.error('[Audio] Transcription error:', error);
       throw new Error('Failed to transcribe audio');
     }
   }
@@ -34,37 +33,33 @@ export class AudioPipeline {
   }
 
   private async convertLC3toWAV(): Promise<Buffer> {
-    // Combine all chunks
     const combined = Buffer.concat(this.chunks);
     
-    // Try ffmpeg conversion first
     try {
       return await this.convertWithFFmpeg(combined);
     } catch (ffmpegError) {
-      console.warn('FFmpeg conversion failed, trying fallback:', ffmpegError);
-      
-      // Fallback: assume input is already raw PCM or try direct
-      // This is a placeholder - actual LC3 decoding requires proper implementation
-      throw new Error('LC3 decoding not implemented. Install ffmpeg or provide LC3 decoder.');
+      console.warn('[Audio] FFmpeg failed:', ffmpegError);
+      throw new Error('LC3 decoding requires ffmpeg. Install: brew install ffmpeg');
     }
   }
 
   private convertWithFFmpeg(lc3Buffer: Buffer): Promise<Buffer> {
     return new Promise((resolve, reject) => {
       const ffmpeg = spawn('ffmpeg', [
-        '-f', 'lc3',           // Input format LC3
-        '-i', 'pipe:0',        // Read from stdin
-        '-f', 'wav',           // Output format WAV
-        '-ar', '16000',        // Sample rate 16kHz (Whisper optimal)
-        '-ac', '1',            // Mono
-        'pipe:1'               // Write to stdout
+        '-f', 'lc3',
+        '-i', 'pipe:0',
+        '-f', 'wav',
+        '-ar', '16000',
+        '-ac', '1',
+        'pipe:1'
       ]);
 
       const chunks: Buffer[] = [];
       
       ffmpeg.stdout.on('data', (chunk) => chunks.push(chunk));
       ffmpeg.stderr.on('data', (data) => {
-        console.log(`[ffmpeg]: ${data}`);
+        // ffmpeg outputs to stderr even on success
+        console.log(`[ffmpeg] ${data}`);
       });
       
       ffmpeg.on('close', (code) => {
@@ -83,13 +78,17 @@ export class AudioPipeline {
   }
 
   private async whisperTranscribe(audioBuffer: Buffer): Promise<string> {
+    if (!config.openAiKey) {
+      throw new Error('OPENAI_API_KEY not configured');
+    }
+
     const form = new FormData();
     form.append('file', audioBuffer, {
       filename: 'audio.wav',
       contentType: 'audio/wav'
     });
     form.append('model', 'whisper-1');
-    form.append('language', 'it'); // Italian transcription
+    form.append('language', 'it');
 
     const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
       method: 'POST',
@@ -108,21 +107,4 @@ export class AudioPipeline {
     const data = await response.json() as { text: string };
     return data.text;
   }
-}
-
-// Fallback CLI input for testing without audio
-export async function getTextInputFallback(): Promise<string> {
-  const readline = await import('readline');
-  
-  const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout
-  });
-
-  return new Promise((resolve) => {
-    rl.question('🎤 Enter text (fallback mode): ', (answer) => {
-      rl.close();
-      resolve(answer);
-    });
-  });
 }

@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: even-openclaw-bridge
+    runtime: node
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: OPENCLAW_WS
+        value: ws://127.0.0.1:18789
+        # Change this to your OpenClaw gateway URL
+      - key: OPENAI_API_KEY
+        generateValue: false
+        # Set this in Render dashboard
+    plan: starter
+    healthCheckPath: /health
