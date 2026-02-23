@@ -136,54 +136,71 @@
 
     async function setupDisplay(sdk) {
       log('Creating display container...');
+
+      const containerConfig = {
+        containerID: CONTAINER_ID,
+        containerName: CONTAINER_NAME,
+        xPosition: 0,
+        yPosition: 0,
+        width: 576,
+        height: 288,
+        content: 'Jarvis AI\nConnecting...',
+        borderWidth: 0,
+        borderColor: 0,
+        borderRdaius: 0,
+        paddingLength: 8,
+        isEventCapture: 1
+      };
+
       try {
+        let result;
+
         if (sdk && sdk.CreateStartUpPageContainer && sdk.TextContainerProperty) {
-          // Use SDK classes
-          const result = await bridge.createStartUpPageContainer(
+          result = await bridge.createStartUpPageContainer(
             new sdk.CreateStartUpPageContainer({
               containerTotalNum: 1,
-              textObject: [
-                new sdk.TextContainerProperty({
-                  containerID: CONTAINER_ID,
-                  containerName: CONTAINER_NAME,
-                  xPosition: 0,
-                  yPosition: 0,
-                  width: 576,
-                  height: 288,
-                  content: 'Jarvis AI\nConnecting...',
-                  borderWidth: 0,
-                  borderColor: 0,
-                  borderRdaius: '0',
-                  paddingLength: 8,
-                  isEventCapture: 1
-                })
-              ]
+              textObject: [new sdk.TextContainerProperty(containerConfig)]
             })
           );
-          log(`Container created (result: ${result})`);
+          log(`createStartUp result: ${result}`);
+
+          // result 1 = invalid (already created) → try rebuild
+          if (result === 1 || result === '1') {
+            log('Container already exists, rebuilding...');
+            if (sdk.RebuildPageContainer) {
+              const rebuildResult = await bridge.rebuildPageContainer(
+                new sdk.RebuildPageContainer({
+                  containerTotalNum: 1,
+                  textObject: [new sdk.TextContainerProperty(containerConfig)]
+                })
+              );
+              log(`rebuild result: ${rebuildResult}`);
+            } else {
+              const rebuildResult = await bridge.callEvenApp('rebuildPageContainer', {
+                containerTotalNum: 1,
+                textObject: [containerConfig]
+              });
+              log(`rebuild via callEvenApp result: ${rebuildResult}`);
+            }
+          }
         } else {
-          // Fallback: use callEvenApp with raw JSON
-          const result = await bridge.callEvenApp('createStartUpPageContainer', {
+          result = await bridge.callEvenApp('createStartUpPageContainer', {
             containerTotalNum: 1,
-            textObject: [{
-              containerID: CONTAINER_ID,
-              containerName: CONTAINER_NAME,
-              xPosition: 0,
-              yPosition: 0,
-              width: 576,
-              height: 288,
-              content: 'Jarvis AI\nConnecting...',
-              borderWidth: 0,
-              borderColor: 0,
-              borderRdaius: '0',
-              paddingLength: 8,
-              isEventCapture: 1
-            }]
+            textObject: [containerConfig]
           });
-          log(`Container created via callEvenApp (result: ${result})`);
+          log(`createStartUp via callEvenApp result: ${result}`);
+
+          if (result === 1 || result === '1') {
+            log('Container already exists, rebuilding...');
+            const rebuildResult = await bridge.callEvenApp('rebuildPageContainer', {
+              containerTotalNum: 1,
+              textObject: [containerConfig]
+            });
+            log(`rebuild via callEvenApp result: ${rebuildResult}`);
+          }
         }
       } catch (e) {
-        log(`Container creation error: ${e.message}`, true);
+        log(`Container error: ${e.message}`, true);
       }
     }
 
@@ -335,18 +352,20 @@
     }
 
     async function startRecording() {
+      log('>>> startRecording called');
       setState('LISTENING');
       audioSeq = 0;
-      g2Show('Listening...');
+      await g2Show('Listening...');
       wsSend({ type: 'touchbar', event: 'LONG_PRESS_START' });
 
       try {
+        log('Calling audioControl(true)...');
         await bridge.audioControl(true);
-        log('Mic ON');
+        log('Mic ON - speak now');
       } catch (e) {
         log(`Mic error: ${e.message}`, true);
         setState('IDLE');
-        g2Show('Mic error\nTap to retry');
+        await g2Show('Mic error\nTap to retry');
       }
     }
 
