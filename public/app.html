@@ -190,52 +190,100 @@
     function setupEvents() {
       log('Registering event handlers...');
 
-      bridge.onEvenHubEvent((event) => {
-        // ─── Touch / click events ──────────────────────
-        if (event.textEvent) {
-          const evType = event.textEvent.eventType;
-          // CLICK_EVENT = 0 (may appear as undefined)
-          if (evType === 0 || evType === undefined) {
-            handleTap();
-          }
-          // DOUBLE_CLICK_EVENT = 3
-          else if (evType === 3) {
-            handleDoubleTap();
-          }
-          // SCROLL_BOTTOM_EVENT = 2
-          else if (evType === 2) {
-            handleScrollDown();
-          }
-          // SCROLL_TOP_EVENT = 1
-          else if (evType === 1) {
-            handleScrollUp();
+      // Debug: log all available bridge methods
+      const methods = Object.getOwnPropertyNames(Object.getPrototypeOf(bridge))
+        .filter(m => m !== 'constructor');
+      log(`Bridge methods: ${methods.join(', ')}`);
+
+      // Try onEvenHubEvent (SDK method)
+      if (typeof bridge.onEvenHubEvent === 'function') {
+        log('Using onEvenHubEvent');
+        bridge.onEvenHubEvent(handleEvent);
+      } else {
+        log('onEvenHubEvent NOT found!', true);
+        // Try alternative event registration methods
+        const altMethods = ['addEventListener', 'on', 'onEvent', 'setEventCallback',
+          'registerEventHandler', 'onGlassesEvent', 'onInputEvent'];
+        for (const m of altMethods) {
+          if (typeof bridge[m] === 'function') {
+            log(`Trying alt method: ${m}`);
+            try {
+              bridge[m](handleEvent);
+              log(`Registered via ${m}`);
+              break;
+            } catch (e) {
+              log(`${m} failed: ${e.message}`, true);
+            }
           }
         }
+      }
 
-        // ─── Audio PCM data ────────────────────────────
-        if (event.audioEvent && event.audioEvent.audioPcm) {
-          handleAudioPcm(event.audioEvent.audioPcm);
+      log('Events setup done');
+    }
+
+    function handleEvent(event) {
+      // RAW EVENT LOG - always log everything received
+      try {
+        const raw = JSON.stringify(event, (key, val) => {
+          if (val instanceof Uint8Array) return `Uint8Array(${val.length})`;
+          return val;
+        });
+        log(`EVENT RAW: ${raw}`);
+      } catch (e) {
+        log(`EVENT (not serializable): ${typeof event} keys=${Object.keys(event||{})}`);
+      }
+
+      // ─── Touch / click events ──────────────────────
+      if (event.textEvent) {
+        const evType = event.textEvent.eventType;
+        log(`textEvent type=${evType}`);
+        // CLICK_EVENT = 0 (may appear as undefined)
+        if (evType === 0 || evType === undefined) {
+          handleTap();
         }
-
-        // ─── System events ─────────────────────────────
-        if (event.sysEvent) {
-          const evType = event.sysEvent.eventType;
-          // FOREGROUND_EXIT = 5
-          if (evType === 5) {
-            log('App backgrounded');
-          }
-          // FOREGROUND_ENTER = 4
-          else if (evType === 4) {
-            log('App foregrounded');
-          }
-          // ABNORMAL_EXIT = 6
-          else if (evType === 6) {
-            log('Abnormal exit', true);
-          }
+        // DOUBLE_CLICK_EVENT = 3
+        else if (evType === 3) {
+          handleDoubleTap();
         }
-      });
+        // SCROLL_BOTTOM_EVENT = 2
+        else if (evType === 2) {
+          handleScrollDown();
+        }
+        // SCROLL_TOP_EVENT = 1
+        else if (evType === 1) {
+          handleScrollUp();
+        }
+      }
 
-      log('Events registered');
+      // Also check for listEvent (in case container is treated as list)
+      if (event.listEvent) {
+        const evType = event.listEvent.eventType;
+        log(`listEvent type=${evType} item=${event.listEvent.currentSelectItemName}`);
+        if (evType === 0 || evType === undefined) handleTap();
+        else if (evType === 3) handleDoubleTap();
+        else if (evType === 2) handleScrollDown();
+        else if (evType === 1) handleScrollUp();
+      }
+
+      // ─── Audio PCM data ────────────────────────────
+      if (event.audioEvent && event.audioEvent.audioPcm) {
+        log(`Audio PCM: ${event.audioEvent.audioPcm.length} bytes`);
+        handleAudioPcm(event.audioEvent.audioPcm);
+      }
+
+      // ─── System events ─────────────────────────────
+      if (event.sysEvent) {
+        const evType = event.sysEvent.eventType;
+        log(`sysEvent type=${evType}`);
+        if (evType === 5) log('App backgrounded');
+        else if (evType === 4) log('App foregrounded');
+        else if (evType === 6) log('Abnormal exit', true);
+      }
+
+      // ─── Catch-all: unknown event shape ────────────
+      if (!event.textEvent && !event.listEvent && !event.audioEvent && !event.sysEvent) {
+        log(`Unknown event shape. Keys: ${Object.keys(event||{}).join(',')}`);
+      }
     }
 
     // ─── Interaction handlers ────────────────────────────────
