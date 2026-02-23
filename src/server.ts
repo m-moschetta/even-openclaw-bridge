@@ -328,6 +328,10 @@ async function handleRecordingEnd(ws: any) {
 
     console.log('[RecordingEnd] Transcribed:', text);
     glassesManager.setLastTranscription(text);
+
+    // Show transcription on glasses
+    sendDisplay(ws, `🗣️ ${text}`, 1, 1);
+
     await processQuery(text, ws);
 
   } catch (error) {
