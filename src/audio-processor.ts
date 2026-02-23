@@ -1,6 +1,5 @@
 import { spawn } from 'child_process';
 import { config } from './config.js';
-import FormData from 'form-data';
 
 export class AudioProcessor {
   private chunks: Buffer[] = [];
@@ -169,11 +168,9 @@ export class AudioProcessor {
       throw new Error('OPENAI_API_KEY not configured - transcription unavailable');
     }
 
+    const blob = new Blob([new Uint8Array(audioBuffer)], { type: 'audio/wav' });
     const form = new FormData();
-    form.append('file', audioBuffer, {
-      filename: 'audio.wav',
-      contentType: 'audio/wav'
-    });
+    form.append('file', blob, 'audio.wav');
     form.append('model', 'whisper-1');
     form.append('language', 'it');
     form.append('response_format', 'json');
@@ -186,9 +183,8 @@ export class AudioProcessor {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${config.openAiKey}`,
-          ...form.getHeaders()
         },
-        body: form as unknown as BodyInit,
+        body: form,
         signal: controller.signal
       });
 
