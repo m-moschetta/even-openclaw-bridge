@@ -56,12 +56,12 @@ export class GlassesManager {
             return '';
         return this.chatHistory.map(entry => {
             if (entry.role === 'user') {
-                return `[YOU] ${entry.text}`;
+                return `> ${entry.text}`;
             }
             else {
-                return `[JARVIS] ${entry.text}`;
+                return entry.text;
             }
-        }).join('\n\n');
+        }).join('\n');
     }
     // Paginate the full conversation, keeping each Q&A together when possible
     paginateConversation() {

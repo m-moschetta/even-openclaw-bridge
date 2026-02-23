@@ -4,8 +4,8 @@ export const config = {
   openClawPassword: process.env.OPENCLAW_GATEWAY_PASSWORD || '',
   openAiKey: process.env.OPENAI_API_KEY || '',
   maxRecordingMs: 30000,
-  displayWidth: 488,
-  linesPerScreen: 5,
-  fontSize: 21,
+  displayWidth: 576,
+  linesPerScreen: 9,
+  fontSize: 16,
   nodeEnv: process.env.NODE_ENV || 'development'
 };

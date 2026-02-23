@@ -356,7 +356,7 @@ async function processQuery(text: string, ws: any) {
     glassesManager.setState('WAITING');
 
     // Show conversation so far + loading indicator at the bottom
-    const waitingText = glassesManager.formatConversation() + '\n\n[JARVIS] ...';
+    const waitingText = glassesManager.formatConversation() + '\n...';
     glassesManager.paginateText(waitingText);
     const waitLast = glassesManager.goToLastPage();
     if (waitLast) {
