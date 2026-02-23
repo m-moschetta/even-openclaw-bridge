@@ -35,6 +35,21 @@ app.get('/health', (req, res) => {
   });
 });
 
+// Plugin endpoint for Even G2 QR code scanning
+app.get('/plugin', (req, res) => {
+  res.setHeader('Content-Type', 'application/javascript');
+  const host = req.headers.host || '192.168.1.111:3000';
+  // Use ws:// for local network (no SSL), wss:// only for HTTPS
+  const wsProtocol = 'ws';
+  const wsUrl = `${wsProtocol}://${host}/ws`;
+  res.send(`export default{name:'Jarvis AI',version:'1.0.0',onStart(ctx){this.ctx=ctx;this.ws=new WebSocket('${wsUrl}');this.ws.onopen=()=>ctx.display.show('🤖 Ciao Mario!');this.ws.onmessage=e=>{const m=JSON.parse(e.data);if(m.type==='display')ctx.display.show(m.text);if(m.type==='status')ctx.display.show(m.message);if(m.type==='mic')ctx.mic.enable(m.enabled);if(m.type==='clear')ctx.display.clear();};this.ws.onclose=()=>ctx.display.show('❌ Offline');},onTouchBarEvent(event,ctx){if(!this.ws)return;if(event==='LONG_PRESS_START'){this.ws.send(JSON.stringify({type:'touchbar',event}));ctx.mic.enable(true);ctx.mic.onData=(data,seq)=>this.ws.send(JSON.stringify({type:'audio_chunk',data:data.toString('base64'),sequence:seq}));}if(event==='LONG_PRESS_END'){ctx.mic.enable(false);this.ws.send(JSON.stringify({type:'audio_end'}));}if(event==='TAP'||event==='DOUBLE_TAP')this.ws.send(JSON.stringify({type:'touchbar',event}));}};`);
+});
+
+// QR Code redirect endpoint
+app.get('/qr-plugin', (req, res) => {
+  res.redirect('/plugin');
+});
+
 // Get current session status
 app.get('/api/session', (req, res) => {
   res.json({

@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Even G2 - OpenClaw Plugin QR</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+        h1 { margin-bottom: 10px; }
+        p { opacity: 0.9; margin-bottom: 30px; }
+        .qr-container {
+            background: white;
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        #qrcode img {
+            width: 300px !important;
+            height: 300px !important;
+        }
+        .instructions {
+            margin-top: 30px;
+            background: rgba(255,255,255,0.1);
+            padding: 20px;
+            border-radius: 10px;
+            max-width: 400px;
+        }
+        .instructions h3 { margin-top: 0; }
+        .instructions ol { text-align: left; }
+        .instructions li { margin: 10px 0; }
+        .status {
+            margin-top: 20px;
+            padding: 15px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 8px;
+        }
+        .bridge-url {
+            margin: 20px 0;
+            padding: 10px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        input {
+            padding: 10px;
+            border: none;
+            border-radius: 5px;
+            width: 300px;
+            margin: 10px 0;
+        }
+        button {
+            padding: 10px 20px;
+            background: #4ade80;
+            color: #1f2937;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        button:hover { background: #22c55e; }
+    </style>
+</head>
+<body>
+    <h1>🥽 Even G2 Plugin QR Generator</h1>
+    <p>Genera un QR code con il tuo bridge URL</p>
+    
+    <div class="bridge-url">
+        <label>Bridge URL:</label><br>
+        <input type="text" id="bridgeUrl" value="wss://olive-facts-burn.loca.lt/ws" placeholder="wss://tuo-bridge.com/ws"><br>
+        <button onclick="generateQR()">Genera QR Code</button>
+    </div>
+    
+    <div class="qr-container">
+        <div id="qrcode"></div>
+    </div>
+    
+    <div class="instructions">
+        <h3>Istruzioni:</h3>
+        <ol>
+            <li>Inserisci l'URL del tuo bridge</li>
+            <li>Clicca "Genera QR Code"</li>
+            <li>Apri l'app Even Realities</li>
+            <li>Vai in "Plugins" → "Scan QR"</li>
+            <li>Inquadra il QR code</li>
+            <li>Long Press per parlare con OpenClaw</li>
+        </ol>
+    </div>
+    
+    <div class="status" id="status">Clicca "Genera QR Code"</div>
+    
+    <script>
+        function generateQR() {
+            const bridgeUrl = document.getElementById('bridgeUrl').value.trim();
+            
+            if (!bridgeUrl) {
+                alert('Inserisci un URL valido');
+                return;
+            }
+            
+            // Plugin code with dynamic bridge URL
+            const pluginCode = `export default{name:'OpenClaw Bridge',version:'1.0.0',onStart(ctx){this.ctx=ctx;this.ws=new WebSocket('${bridgeUrl}');this.ws.onopen=()=>ctx.display.show('🤖 Pronto');this.ws.onmessage=e=>{const m=JSON.parse(e.data);if(m.type==='display')ctx.display.show(m.text);if(m.type==='status')ctx.display.show(m.message);if(m.type==='mic')ctx.mic.enable(m.enabled);if(m.type==='clear')ctx.display.clear();};this.ws.onclose=()=>ctx.display.show('❌ Offline');},onTouchBarEvent(event,ctx){if(!this.ws)return;if(event==='LONG_PRESS_START'){this.ws.send(JSON.stringify({type:'touchbar',event}));ctx.mic.enable(true);ctx.mic.onData=(data,seq)=>this.ws.send(JSON.stringify({type:'audio_chunk',data:data.toString('base64'),sequence:seq}));}if(event==='LONG_PRESS_END'){ctx.mic.enable(false);this.ws.send(JSON.stringify({type:'audio_end'}));}if(event==='TAP'||event==='DOUBLE_TAP')this.ws.send(JSON.stringify({type:'touchbar',event}));}};`;
+            
+            // Clear previous QR
+            document.getElementById('qrcode').innerHTML = '';
+            
+            // Generate QR code
+            new QRCode(document.getElementById('qrcode'), {
+                text: pluginCode,
+                width: 300,
+                height: 300,
+                colorDark: '#000000',
+                colorLight: '#ffffff',
+                correctLevel: QRCode.CorrectLevel.L // Low correction = more data
+            });
+            
+            document.getElementById('status').innerHTML = `
+                ✅ QR Code generato!<br>
+                <small>Contiene: ${pluginCode.length} caratteri</small>
+            `;
+        }
+        
+        // Generate on load with default
+        window.onload = generateQR;
+    </script>
+</body>
+</html>

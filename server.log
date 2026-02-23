@@ -1,0 +1,11 @@
+
+> even-openclaw-bridge@1.0.0 start
+> node dist/server.js
+
+[OpenClaw] Connecting to ws://127.0.0.1:18789
+🚀 Even OpenClaw Bridge running on port 3000
+📱 WebSocket: ws://localhost:3000/ws
+🌐 Dashboard: http://localhost:3000
+🔍 Health: http://localhost:3000/health
+⚙️  Config: OpenClaw=ws://127.0.0.1:18789, Whisper=✅
+[OpenClaw] Connected
