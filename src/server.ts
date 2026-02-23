@@ -430,3 +430,4 @@ process.on('unhandledRejection', (reason) => {
   console.error('Unhandled rejection:', reason);
   // Keep running but log
 });
+// Force redeploy Mon Feb 23 14:08:19 CET 2026
