@@ -3,6 +3,9 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import { createServer } from 'http';
 import { WebSocketServer } from 'ws';
+import { readFileSync } from 'fs';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
 import { GlassesManager } from './glasses-manager.js';
 import { OpenClawProxy } from './openclaw-proxy.js';
 import { AudioProcessor } from './audio-processor.js';
@@ -35,19 +38,30 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Plugin endpoint for Even G2 QR code scanning
-app.get('/plugin', (req, res) => {
-  res.setHeader('Content-Type', 'application/javascript');
-  const host = req.headers.host || '192.168.1.111:3000';
-  // Use wss:// for Render (HTTPS), ws:// for local
-  const wsProtocol = host.includes('onrender.com') ? 'wss' : 'ws';
+// Even Hub web app endpoint - serves the G2 app with correct WebSocket URL
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+app.get('/app', (req, res) => {
+  const host = req.headers.host || 'localhost:3000';
+  const wsProtocol = host.includes('onrender.com') || host.includes('ngrok') ? 'wss' : 'ws';
   const wsUrl = `${wsProtocol}://${host}/ws`;
-  res.send(`export default{name:'Jarvis AI',version:'1.0.0',onStart(ctx){this.ctx=ctx;this.ws=new WebSocket('${wsUrl}');this.ws.onopen=()=>ctx.display.show('🤖 Ciao Mario!');this.ws.onmessage=e=>{const m=JSON.parse(e.data);if(m.type==='display')ctx.display.show(m.text);if(m.type==='status')ctx.display.show(m.message);if(m.type==='mic')ctx.mic.enable(m.enabled);if(m.type==='clear')ctx.display.clear();};this.ws.onclose=()=>ctx.display.show('❌ Offline');},onTouchBarEvent(event,ctx){if(!this.ws)return;if(event==='LONG_PRESS_START'){this.ws.send(JSON.stringify({type:'touchbar',event}));ctx.mic.enable(true);ctx.mic.onData=(data,seq)=>this.ws.send(JSON.stringify({type:'audio_chunk',data:data.toString('base64'),sequence:seq}));}if(event==='LONG_PRESS_END'){ctx.mic.enable(false);this.ws.send(JSON.stringify({type:'audio_end'}));}if(event==='TAP'||event==='DOUBLE_TAP')this.ws.send(JSON.stringify({type:'touchbar',event}));}};`);
+
+  const htmlPath = join(__dirname, '..', 'public', 'app.html');
+  let html = readFileSync(htmlPath, 'utf8');
+  html = html.replace('%%WS_URL%%', wsUrl);
+  res.setHeader('Content-Type', 'text/html');
+  res.send(html);
+});
+
+// Legacy plugin endpoint - redirect to new web app
+app.get('/plugin', (req, res) => {
+  res.redirect('/app');
 });
 
 // QR Code redirect endpoint
 app.get('/qr-plugin', (req, res) => {
-  res.redirect('/plugin');
+  res.redirect('/app');
 });
 
 // Get current session status
@@ -140,8 +154,16 @@ async function handleGlassesMessage(message: any, ws: any) {
         break;
       
       case 'audio_chunk':
-        // Receive LC3 audio chunk
+        // Receive LC3 audio chunk (legacy plugin)
         audioProcessor.addChunk(
+          Buffer.from(message.data, 'base64'),
+          message.sequence
+        );
+        break;
+
+      case 'audio_pcm':
+        // Receive PCM audio chunk from Even Hub web app
+        audioProcessor.addPcmChunk(
           Buffer.from(message.data, 'base64'),
           message.sequence
         );
@@ -152,6 +174,16 @@ async function handleGlassesMessage(message: any, ws: any) {
         await handleTranscription(ws);
         break;
       
+      case 'page_prev':
+        // Previous page navigation from web app scroll
+        if (glassesManager.getState() === 'DISPLAYING') {
+          const prevPage = glassesManager.prevPage();
+          if (prevPage) {
+            sendDisplay(ws, prevPage.text, prevPage.page, prevPage.total);
+          }
+        }
+        break;
+
       case 'text_input':
         // Fallback text input
         await processQuery(message.text, ws);
