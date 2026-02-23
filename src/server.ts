@@ -47,8 +47,26 @@ app.get('/app', (req, res) => {
   const wsProtocol = host.includes('onrender.com') || host.includes('ngrok') ? 'wss' : 'ws';
   const wsUrl = `${wsProtocol}://${host}/ws`;
 
-  const htmlPath = join(__dirname, '..', 'public', 'app.html');
-  let html = readFileSync(htmlPath, 'utf8');
+  // Try multiple paths: from dist/ or from project root
+  const candidates = [
+    join(__dirname, '..', 'public', 'app.html'),
+    join(__dirname, 'public', 'app.html'),
+    join(process.cwd(), 'public', 'app.html')
+  ];
+
+  let html = '';
+  for (const p of candidates) {
+    try {
+      html = readFileSync(p, 'utf8');
+      break;
+    } catch {}
+  }
+
+  if (!html) {
+    console.error('[App] app.html not found in:', candidates);
+    return res.status(500).send('app.html not found');
+  }
+
   html = html.replace('%%WS_URL%%', wsUrl);
   res.setHeader('Content-Type', 'text/html');
   res.send(html);
