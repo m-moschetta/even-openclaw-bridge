@@ -416,16 +416,10 @@ async function processQuery(text: string, ws: any) {
 
 async function handlePageNavigation(ws: any) {
   try {
-    // 7.3 Page navigation - cycle through pages
+    // Page navigation - stop at last page, don't cycle
     const nextPage = glassesManager.nextPage();
     if (nextPage) {
       sendDisplay(ws, nextPage.text, nextPage.page, nextPage.total);
-    } else {
-      // Back to first page if at end
-      const firstPage = glassesManager.goToFirstPage();
-      if (firstPage) {
-        sendDisplay(ws, firstPage.text, firstPage.page, firstPage.total);
-      }
     }
   } catch (error) {
     console.error('[PageNav] Error:', error);
