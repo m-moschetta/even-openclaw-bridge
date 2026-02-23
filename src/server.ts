@@ -354,7 +354,14 @@ async function handleRecordingEnd(ws: any) {
 async function processQuery(text: string, ws: any) {
   try {
     glassesManager.setState('WAITING');
-    sendStatus(ws, '🤖 Rispondo...');
+
+    // Show conversation so far + loading indicator at the bottom
+    const waitingText = glassesManager.formatConversation() + '\n---\n⏳ ...';
+    const waitPages = glassesManager.paginateText(waitingText);
+    const waitLast = glassesManager.goToLastPage();
+    if (waitLast) {
+      sendDisplay(ws, waitLast.text, waitLast.page, waitLast.total);
+    }
 
     let response: string;
     try {

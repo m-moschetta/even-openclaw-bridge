@@ -50,20 +50,20 @@ export class GlassesManager {
     getCurrentPage() {
         return this.currentPage;
     }
-    // Format the full conversation history for display
+    // Format the full conversation history for display on glasses
     formatConversation() {
         if (this.chatHistory.length === 0)
             return '';
         return this.chatHistory.map(entry => {
             if (entry.role === 'user') {
-                return `\u25B6 ${entry.text}`; // ▶ for user
+                return `> ${entry.text}`;
             }
             else {
-                return `${entry.text}`;
+                return entry.text;
             }
-        }).join('\n\n');
+        }).join('\n---\n');
     }
-    // Paginate the full conversation, showing latest content last
+    // Paginate the full conversation, keeping each Q&A together when possible
     paginateConversation() {
         const text = this.formatConversation();
         return this.paginateText(text);
