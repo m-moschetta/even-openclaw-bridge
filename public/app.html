@@ -2,108 +2,248 @@
 <html lang="it">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Jarvis AI - Even G2</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>J.A.R.V.I.S. - Even G2</title>
   <style>
+    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700&family=Rajdhani:wght@300;400;500;600&display=swap');
+
+    :root {
+      --arc-blue: #0af;
+      --arc-cyan: #0ff;
+      --arc-dim: #046;
+      --arc-glow: rgba(0,170,255,0.15);
+      --hud-orange: #f80;
+      --hud-red: #f33;
+      --bg: #050810;
+    }
+
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
-      font-family: -apple-system, system-ui, 'SF Pro Text', sans-serif;
-      background: #0a0a0a; color: #e0e0e0;
+      font-family: 'Rajdhani', sans-serif;
+      background: var(--bg); color: #c0d8f0;
       min-height: 100vh; display: flex; flex-direction: column;
+      overflow: hidden;
     }
 
-    /* Header */
+    /* ─── Animated background grid ───────────────── */
+    body::before {
+      content: '';
+      position: fixed; inset: 0; z-index: 0;
+      background:
+        linear-gradient(rgba(0,170,255,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,170,255,0.03) 1px, transparent 1px);
+      background-size: 40px 40px;
+      animation: gridScroll 20s linear infinite;
+    }
+    @keyframes gridScroll {
+      to { background-position: 40px 40px; }
+    }
+
+    /* ─── Header / HUD bar ───────────────────────── */
     header {
-      padding: 12px 16px;
-      background: #111;
-      border-bottom: 1px solid #1a1a1a;
-      display: flex; align-items: center; gap: 10px;
+      position: relative; z-index: 10;
+      padding: 10px 16px;
+      background: linear-gradient(180deg, rgba(0,170,255,0.08) 0%, transparent 100%);
+      border-bottom: 1px solid rgba(0,170,255,0.2);
+      display: flex; align-items: center; gap: 12px;
     }
-    header .dot {
+
+    .arc-reactor {
+      width: 32px; height: 32px; position: relative;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .arc-reactor .ring {
+      position: absolute; inset: 0;
+      border: 2px solid var(--arc-dim);
+      border-top-color: var(--arc-blue);
+      border-radius: 50%;
+      animation: arcSpin 3s linear infinite;
+    }
+    .arc-reactor .ring.inner {
+      inset: 5px;
+      border-width: 1.5px;
+      border-top-color: var(--arc-cyan);
+      animation-duration: 2s;
+      animation-direction: reverse;
+    }
+    .arc-reactor .core {
       width: 8px; height: 8px; border-radius: 50%;
-      background: #333; transition: background 0.3s;
+      background: var(--arc-blue);
+      box-shadow: 0 0 8px var(--arc-blue), 0 0 20px var(--arc-glow);
+      transition: all 0.3s;
     }
-    header .dot.online { background: #00cc66; }
-    header .dot.listening { background: #ff6600; animation: pulse 1s infinite; }
-    header h1 { font-size: 16px; font-weight: 600; color: #fff; }
-    header .state-badge {
-      margin-left: auto; font-size: 11px;
-      padding: 3px 8px; border-radius: 10px;
-      background: #1a1a1a; color: #888;
+    .arc-reactor.listening .core {
+      background: var(--hud-orange);
+      box-shadow: 0 0 12px var(--hud-orange), 0 0 30px rgba(255,136,0,0.3);
+      animation: corePulse 0.8s ease infinite;
+    }
+    .arc-reactor.processing .ring { border-top-color: var(--arc-cyan); animation-duration: 0.5s; }
+    .arc-reactor.processing .ring.inner { animation-duration: 0.3s; }
+
+    @keyframes arcSpin { to { transform: rotate(360deg); } }
+    @keyframes corePulse {
+      0%,100% { transform: scale(1); }
+      50% { transform: scale(1.4); }
     }
 
-    @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.4; }
+    .hud-title {
+      font-family: 'Orbitron', monospace;
+      font-size: 15px; font-weight: 500;
+      color: var(--arc-blue);
+      letter-spacing: 3px;
+      text-shadow: 0 0 10px var(--arc-glow);
     }
 
-    /* Chat area */
+    .hud-status {
+      margin-left: auto;
+      font-family: 'Orbitron', monospace;
+      font-size: 9px; letter-spacing: 1px;
+      padding: 3px 10px; border-radius: 2px;
+      border: 1px solid var(--arc-dim);
+      color: var(--arc-blue);
+      text-transform: uppercase;
+      transition: all 0.3s;
+    }
+    .hud-status.listening { border-color: var(--hud-orange); color: var(--hud-orange); }
+    .hud-status.error { border-color: var(--hud-red); color: var(--hud-red); }
+
+    /* ─── Chat area ──────────────────────────────── */
     #chat {
-      flex: 1; overflow-y: auto; padding: 12px 16px;
-      display: flex; flex-direction: column; gap: 8px;
+      flex: 1; overflow-y: auto; padding: 16px;
+      display: flex; flex-direction: column; gap: 10px;
+      position: relative; z-index: 5;
+      scrollbar-width: thin;
+      scrollbar-color: var(--arc-dim) transparent;
     }
+
     .msg {
-      max-width: 85%; padding: 8px 12px;
-      border-radius: 12px; font-size: 14px;
-      line-height: 1.4; word-wrap: break-word;
-      animation: fadeIn 0.2s ease;
+      max-width: 88%; padding: 10px 14px;
+      font-size: 14px; line-height: 1.5;
+      word-wrap: break-word;
+      animation: msgIn 0.3s ease;
+      position: relative;
     }
     .msg.user {
       align-self: flex-end;
-      background: #1a3a2a; color: #a0e8c0;
-      border-bottom-right-radius: 4px;
+      background: rgba(0,170,255,0.08);
+      border: 1px solid rgba(0,170,255,0.2);
+      border-radius: 12px 12px 4px 12px;
+      color: #a0d4f0;
+    }
+    .msg.user::after {
+      content: '';
+      position: absolute; top: 0; right: -4px;
+      width: 12px; height: 12px;
+      background: linear-gradient(135deg, rgba(0,170,255,0.2) 50%, transparent 50%);
     }
     .msg.assistant {
       align-self: flex-start;
-      background: #1a1a2a; color: #c0c8e8;
-      border-bottom-left-radius: 4px;
+      background: rgba(0,255,255,0.04);
+      border: 1px solid rgba(0,255,255,0.12);
+      border-radius: 12px 12px 12px 4px;
+      color: #c0e8f0;
+    }
+    .msg.assistant::before {
+      content: '';
+      position: absolute; top: -1px; left: 0;
+      width: 40px; height: 2px;
+      background: linear-gradient(90deg, var(--arc-cyan), transparent);
     }
     .msg.system {
       align-self: center;
-      background: none; color: #555;
-      font-size: 12px; padding: 4px 0;
+      background: none; color: #445;
+      font-size: 11px; padding: 4px 0;
+      font-family: 'Orbitron', monospace;
+      letter-spacing: 0.5px;
     }
     .msg .label {
-      font-size: 10px; font-weight: 600;
-      margin-bottom: 2px; opacity: 0.6;
-      text-transform: uppercase; letter-spacing: 0.5px;
+      font-family: 'Orbitron', monospace;
+      font-size: 9px; font-weight: 500;
+      margin-bottom: 4px;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+    }
+    .msg.user .label { color: var(--arc-blue); }
+    .msg.assistant .label { color: var(--arc-cyan); }
+
+    @keyframes msgIn {
+      from { opacity: 0; transform: translateY(8px) scale(0.98); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
     }
 
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(4px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-
-    /* G2 display mirror */
+    /* ─── G2 HUD Mirror ──────────────────────────── */
     #g2-display {
-      margin: 0 16px; padding: 10px 14px;
-      background: #000; border: 1px solid #222;
-      border-radius: 8px; font-size: 13px;
-      color: #00ff88; font-family: 'SF Mono', monospace;
-      min-height: 60px; white-space: pre-wrap;
-      word-wrap: break-word;
+      position: relative; z-index: 5;
+      margin: 8px 16px 6px;
+      padding: 12px 16px;
+      background: rgba(0,0,0,0.6);
+      border: 1px solid rgba(0,170,255,0.15);
+      border-radius: 4px;
+      font-family: 'Rajdhani', monospace;
+      font-size: 13px; font-weight: 400;
+      color: var(--arc-cyan);
+      min-height: 50px;
+      white-space: pre-wrap; word-wrap: break-word;
+    }
+    #g2-display::before {
+      content: 'G2 HUD';
+      position: absolute; top: -8px; left: 12px;
+      font-family: 'Orbitron', monospace;
+      font-size: 8px; letter-spacing: 2px;
+      color: var(--arc-dim);
+      background: var(--bg);
+      padding: 0 6px;
+    }
+    #g2-display::after {
+      content: '';
+      position: absolute; bottom: -1px; left: 0; right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--arc-blue), transparent);
     }
     #g2-display .page-indicator {
-      font-size: 10px; color: #005533;
-      text-align: right; margin-top: 4px;
+      font-family: 'Orbitron', monospace;
+      font-size: 9px; color: var(--arc-dim);
+      text-align: right; margin-top: 6px;
+      letter-spacing: 1px;
     }
 
-    /* Log */
+    /* ─── Log ────────────────────────────────────── */
     #log {
-      font-size: 10px; color: #444;
-      max-height: 120px; overflow-y: auto;
-      padding: 8px 16px;
-      border-top: 1px solid #111;
+      position: relative; z-index: 5;
+      font-size: 9px; color: #334;
+      max-height: 80px; overflow-y: auto;
+      padding: 6px 16px;
+      border-top: 1px solid rgba(0,170,255,0.06);
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      scrollbar-width: none;
     }
-    .log-entry { margin-bottom: 1px; font-family: 'SF Mono', monospace; }
-    .err { color: #cc4444; }
+    .log-entry { margin-bottom: 1px; }
+    .err { color: var(--hud-red); }
+
+    /* ─── Scan line overlay ──────────────────────── */
+    body::after {
+      content: '';
+      position: fixed; inset: 0; z-index: 2;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(0,0,0,0.03) 2px,
+        rgba(0,0,0,0.03) 4px
+      );
+      pointer-events: none;
+    }
   </style>
 </head>
 <body>
   <header>
-    <div class="dot" id="statusDot"></div>
-    <h1>Jarvis</h1>
-    <div class="state-badge" id="stateBadge">...</div>
+    <div class="arc-reactor" id="arcReactor">
+      <div class="ring"></div>
+      <div class="ring inner"></div>
+      <div class="core"></div>
+    </div>
+    <div class="hud-title">J.A.R.V.I.S.</div>
+    <div class="hud-status" id="stateBadge">INIT</div>
   </header>
 
   <div id="chat"></div>
@@ -116,12 +256,10 @@
   <div id="log"></div>
 
   <script type="module">
-    // ─── Configuration ───────────────────────────────────────
     const BRIDGE_WS_URL = '%%WS_URL%%';
     const CONTAINER_ID = 1;
     const CONTAINER_NAME = 'main';
 
-    // ─── State ───────────────────────────────────────────────
     let state = 'INIT';
     let bridge = null;
     let ws = null;
@@ -129,8 +267,7 @@
     let reconnectAttempts = 0;
     const MAX_RECONNECT = 5;
 
-    // ─── UI Elements ─────────────────────────────────────────
-    const statusDot = document.getElementById('statusDot');
+    const arcReactor = document.getElementById('arcReactor');
     const stateBadge = document.getElementById('stateBadge');
     const chatEl = document.getElementById('chat');
     const g2Text = document.getElementById('g2Text');
@@ -149,11 +286,15 @@
     function setState(newState) {
       state = newState;
       stateBadge.textContent = newState;
+      stateBadge.className = 'hud-status';
 
-      statusDot.className = 'dot';
-      if (newState === 'IDLE') statusDot.classList.add('online');
-      else if (newState === 'LISTENING') statusDot.classList.add('listening');
-      else if (newState !== 'INIT') statusDot.classList.add('online');
+      arcReactor.className = 'arc-reactor';
+      if (newState === 'LISTENING') {
+        arcReactor.classList.add('listening');
+        stateBadge.classList.add('listening');
+      } else if (newState === 'PROCESSING' || newState === 'TRANSCRIBING') {
+        arcReactor.classList.add('processing');
+      }
 
       log(`State → ${state}`);
     }
@@ -162,9 +303,9 @@
       const msg = document.createElement('div');
       msg.className = `msg ${role}`;
       if (role === 'user') {
-        msg.innerHTML = `<div class="label">Tu</div>${escapeHtml(text)}`;
+        msg.innerHTML = `<div class="label">Operatore</div>${escapeHtml(text)}`;
       } else if (role === 'assistant') {
-        msg.innerHTML = `<div class="label">Jarvis</div>${escapeHtml(text)}`;
+        msg.innerHTML = `<div class="label">J.A.R.V.I.S.</div>${escapeHtml(text)}`;
       } else {
         msg.textContent = text;
       }
@@ -178,7 +319,6 @@
       return div.innerHTML;
     }
 
-    // ─── G2 Display helpers ──────────────────────────────────
     async function g2Show(text) {
       g2Text.textContent = text;
       g2Page.textContent = '';
@@ -196,7 +336,7 @@
 
     // ─── Even Hub SDK Initialization ─────────────────────────
     async function initBridge() {
-      log('Loading Even Hub SDK...');
+      log('Initializing neural interface...');
 
       try {
         const sdk = await import('https://esm.sh/@evenrealities/even_hub_sdk');
@@ -221,12 +361,9 @@
         let attempts = 0;
         const check = () => {
           attempts++;
-          const b = window.EvenAppBridge
-            || window.evenAppBridge
-            || window.bridge;
+          const b = window.EvenAppBridge || window.evenAppBridge || window.bridge;
           if (b) {
-            const inst = typeof b.getInstance === 'function' ? b.getInstance() : b;
-            resolve(inst);
+            resolve(typeof b.getInstance === 'function' ? b.getInstance() : b);
           } else if (attempts > 50) {
             reject(new Error('Bridge not found after 5s'));
           } else {
@@ -242,26 +379,21 @@
     }
 
     async function setupDisplay(sdk) {
-      log('Creating display container...');
+      log('Creating HUD container...');
 
       const containerConfig = {
         containerID: CONTAINER_ID,
         containerName: CONTAINER_NAME,
-        xPosition: 0,
-        yPosition: 0,
-        width: 576,
-        height: 288,
-        content: 'Jarvis AI\nTap to speak',
-        borderWidth: 0,
-        borderColor: 0,
-        borderRdaius: 0,
-        paddingLength: 8,
+        xPosition: 0, yPosition: 0,
+        width: 576, height: 288,
+        content: 'J.A.R.V.I.S.\nSistema pronto',
+        borderWidth: 0, borderColor: 0,
+        borderRdaius: 0, paddingLength: 8,
         isEventCapture: 1
       };
 
       try {
         let result;
-
         if (sdk && sdk.CreateStartUpPageContainer && sdk.TextContainerProperty) {
           result = await bridge.createStartUpPageContainer(
             new sdk.CreateStartUpPageContainer({
@@ -270,39 +402,29 @@
             })
           );
           log(`createStartUp result: ${result}`);
-
           if (result === 1 || result === '1') {
-            log('Container already exists, rebuilding...');
+            log('Container exists, rebuilding...');
             if (sdk.RebuildPageContainer) {
-              const rebuildResult = await bridge.rebuildPageContainer(
+              await bridge.rebuildPageContainer(
                 new sdk.RebuildPageContainer({
                   containerTotalNum: 1,
                   textObject: [new sdk.TextContainerProperty(containerConfig)]
                 })
               );
-              log(`rebuild result: ${rebuildResult}`);
             } else {
-              const rebuildResult = await bridge.callEvenApp('rebuildPageContainer', {
-                containerTotalNum: 1,
-                textObject: [containerConfig]
+              await bridge.callEvenApp('rebuildPageContainer', {
+                containerTotalNum: 1, textObject: [containerConfig]
               });
-              log(`rebuild via callEvenApp result: ${rebuildResult}`);
             }
           }
         } else {
           result = await bridge.callEvenApp('createStartUpPageContainer', {
-            containerTotalNum: 1,
-            textObject: [containerConfig]
+            containerTotalNum: 1, textObject: [containerConfig]
           });
-          log(`createStartUp via callEvenApp result: ${result}`);
-
           if (result === 1 || result === '1') {
-            log('Container already exists, rebuilding...');
-            const rebuildResult = await bridge.callEvenApp('rebuildPageContainer', {
-              containerTotalNum: 1,
-              textObject: [containerConfig]
+            await bridge.callEvenApp('rebuildPageContainer', {
+              containerTotalNum: 1, textObject: [containerConfig]
             });
-            log(`rebuild via callEvenApp result: ${rebuildResult}`);
           }
         }
       } catch (e) {
@@ -312,33 +434,22 @@
 
     function setupEvents() {
       log('Registering event handlers...');
-
       const methods = Object.getOwnPropertyNames(Object.getPrototypeOf(bridge))
         .filter(m => m !== 'constructor');
       log(`Bridge methods: ${methods.join(', ')}`);
 
       if (typeof bridge.onEvenHubEvent === 'function') {
-        log('Using onEvenHubEvent');
         bridge.onEvenHubEvent(handleEvent);
       } else {
-        log('onEvenHubEvent NOT found!', true);
         const altMethods = ['addEventListener', 'on', 'onEvent', 'setEventCallback',
           'registerEventHandler', 'onGlassesEvent', 'onInputEvent'];
         for (const m of altMethods) {
           if (typeof bridge[m] === 'function') {
-            log(`Trying alt method: ${m}`);
-            try {
-              bridge[m](handleEvent);
-              log(`Registered via ${m}`);
-              break;
-            } catch (e) {
-              log(`${m} failed: ${e.message}`, true);
-            }
+            try { bridge[m](handleEvent); break; } catch {}
           }
         }
       }
-
-      log('Events setup done');
+      log('Events online');
     }
 
     function handleEvent(event) {
@@ -347,188 +458,114 @@
           if (val instanceof Uint8Array) return `Uint8Array(${val.length})`;
           return val;
         });
-        log(`EVENT RAW: ${raw}`);
-      } catch (e) {
-        log(`EVENT (not serializable): ${typeof event} keys=${Object.keys(event||{})}`);
-      }
+        log(`EVENT: ${raw}`);
+      } catch {}
 
-      // ─── Touch / click events ──────────────────────
       if (event.textEvent) {
-        const evType = event.textEvent.eventType;
-        log(`textEvent type=${evType}`);
-        if (evType === 0 || evType === undefined) handleTap();
-        else if (evType === 1) handleScrollUp();
-        else if (evType === 2) {
-          if (state === 'DISPLAYING') handleScrollDown();
-          else handleDoubleTap();
-        }
-        else if (evType === 3) handleDoubleTap();
+        const t = event.textEvent.eventType;
+        if (t === 0 || t === undefined) handleTap();
+        else if (t === 1) handleScrollUp();
+        else if (t === 2) { state === 'DISPLAYING' ? handleScrollDown() : handleDoubleTap(); }
+        else if (t === 3) handleDoubleTap();
       }
-
       if (event.listEvent) {
-        const evType = event.listEvent.eventType;
-        log(`listEvent type=${evType} item=${event.listEvent.currentSelectItemName}`);
-        if (evType === 0 || evType === undefined) handleTap();
-        else if (evType === 3) handleDoubleTap();
-        else if (evType === 2) handleScrollDown();
-        else if (evType === 1) handleScrollUp();
+        const t = event.listEvent.eventType;
+        if (t === 0 || t === undefined) handleTap();
+        else if (t === 3) handleDoubleTap();
+        else if (t === 2) handleScrollDown();
+        else if (t === 1) handleScrollUp();
       }
-
-      // ─── Audio PCM data ────────────────────────────
       if (event.audioEvent && event.audioEvent.audioPcm) {
-        log(`Audio PCM: ${event.audioEvent.audioPcm.length} bytes`);
         handleAudioPcm(event.audioEvent.audioPcm);
       }
-
-      // ─── System events ─────────────────────────────
       if (event.sysEvent) {
-        const evType = event.sysEvent.eventType;
-        log(`sysEvent type=${evType}`);
-        if (evType === 3) handleTap();
-        else if (evType === 5) log('App backgrounded');
-        else if (evType === 4) log('App foregrounded');
-        else if (evType === 6) log('Abnormal exit', true);
-      }
-
-      if (!event.textEvent && !event.listEvent && !event.audioEvent && !event.sysEvent) {
-        log(`Unknown event shape. Keys: ${Object.keys(event||{}).join(',')}`);
+        const t = event.sysEvent.eventType;
+        if (t === 3) handleTap();
       }
     }
 
-    // ─── Interaction handlers ────────────────────────────────
-
     function handleTap() {
-      log(`Tap in state: ${state}`);
-
-      if (state === 'IDLE' || state === 'DISPLAYING') {
-        startRecording();
-      } else if (state === 'LISTENING') {
-        stopRecording();
-      }
+      if (state === 'IDLE' || state === 'DISPLAYING') startRecording();
+      else if (state === 'LISTENING') stopRecording();
     }
 
     function handleDoubleTap() {
-      log('Double tap → reset');
-      if (state === 'LISTENING') {
-        bridge.audioControl(false).catch(() => {});
-      }
+      if (state === 'LISTENING') bridge.audioControl(false).catch(() => {});
       wsSend({ type: 'touchbar', event: 'DOUBLE_TAP' });
       setState('IDLE');
-      g2Show('Jarvis AI\nTap to speak');
+      g2Show('J.A.R.V.I.S.\nSistema pronto');
     }
 
     function handleScrollDown() {
-      if (state === 'DISPLAYING') {
-        log('Scroll down → next page');
-        wsSend({ type: 'touchbar', event: 'TAP' });
-      }
+      if (state === 'DISPLAYING') wsSend({ type: 'touchbar', event: 'TAP' });
     }
-
     function handleScrollUp() {
-      if (state === 'DISPLAYING') {
-        log('Scroll up → prev page');
-        wsSend({ type: 'page_prev' });
-      }
+      if (state === 'DISPLAYING') wsSend({ type: 'page_prev' });
     }
 
     async function startRecording() {
-      log('>>> startRecording called');
       setState('LISTENING');
       audioSeq = 0;
-      await g2Show('🎤 Ascoltando...');
+      await g2Show('[REC] In ascolto...');
       wsSend({ type: 'touchbar', event: 'LONG_PRESS_START' });
-
       try {
-        log('Calling audioControl(true)...');
         await bridge.audioControl(true);
-        log('Mic ON - speak now');
+        log('Mic ON');
       } catch (e) {
         log(`Mic error: ${e.message}`, true);
         setState('IDLE');
-        await g2Show('Mic error\nTap to retry');
+        await g2Show('ERR: Mic offline\nTap to retry');
       }
     }
 
     async function stopRecording() {
       setState('PROCESSING');
-      g2Show('⏳ Elaboro...');
-
-      try {
-        await bridge.audioControl(false);
-        log('Mic OFF');
-      } catch (e) {
-        log(`Mic off error: ${e.message}`, true);
-      }
-
+      g2Show('[...] Elaborazione');
+      try { await bridge.audioControl(false); } catch {}
       wsSend({ type: 'audio_end' });
     }
 
     function handleAudioPcm(pcmData) {
       if (state !== 'LISTENING') return;
-      const base64 = uint8ToBase64(pcmData);
-      wsSend({
-        type: 'audio_pcm',
-        data: base64,
-        sequence: audioSeq++
-      });
+      wsSend({ type: 'audio_pcm', data: uint8ToBase64(pcmData), sequence: audioSeq++ });
     }
 
-    // ─── WebSocket to Bridge ─────────────────────────────────
+    // ─── WebSocket ───────────────────────────────────────────
 
     function connectWs() {
       log(`Connecting to ${BRIDGE_WS_URL}...`);
-
       ws = new WebSocket(BRIDGE_WS_URL);
 
       ws.onopen = () => {
         reconnectAttempts = 0;
-        log('Bridge connected');
+        log('Uplink established');
         setState('IDLE');
-        g2Show('Jarvis AI\nTap to speak');
+        g2Show('J.A.R.V.I.S.\nSistema pronto');
       };
 
       ws.onmessage = (event) => {
-        try {
-          const msg = JSON.parse(event.data);
-          handleBridgeMessage(msg);
-        } catch (e) {
-          log(`Parse error: ${e.message}`, true);
-        }
+        try { handleBridgeMessage(JSON.parse(event.data)); } catch {}
       };
 
-      ws.onclose = () => {
-        log('Bridge disconnected');
-        scheduleReconnect();
-      };
-
-      ws.onerror = (e) => {
-        log('WS error', true);
-      };
+      ws.onclose = () => { log('Uplink lost'); scheduleReconnect(); };
+      ws.onerror = () => { log('WS error', true); };
     }
 
     function scheduleReconnect() {
       if (reconnectAttempts >= MAX_RECONNECT) {
-        log('Max reconnect attempts', true);
-        g2Show('Offline\nRestart app');
+        log('Max reconnect', true);
+        g2Show('OFFLINE\nRestart required');
         return;
       }
       reconnectAttempts++;
-      const delay = Math.min(2000 * Math.pow(2, reconnectAttempts - 1), 30000);
-      log(`Reconnecting in ${delay}ms (${reconnectAttempts}/${MAX_RECONNECT})`);
-      setTimeout(connectWs, delay);
+      setTimeout(connectWs, Math.min(2000 * Math.pow(2, reconnectAttempts - 1), 30000));
     }
 
     function wsSend(msg) {
-      if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify(msg));
-      } else {
-        log('WS not connected, message dropped', true);
-      }
+      if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(msg));
     }
 
     function handleBridgeMessage(msg) {
-      log(`Bridge: ${msg.type}`);
-
       switch (msg.type) {
         case 'status':
           g2Show(msg.message || '');
@@ -536,28 +573,18 @@
 
         case 'display':
           setState('DISPLAYING');
-          const displayText = msg.text || '';
-          g2Text.textContent = displayText;
-          if (msg.total && msg.total > 1) {
-            g2Page.textContent = `${msg.page}/${msg.total}`;
-          } else {
-            g2Page.textContent = '';
-          }
-          // Also update glasses
+          g2Text.textContent = msg.text || '';
+          g2Page.textContent = msg.total > 1 ? `PAGE ${msg.page}/${msg.total}` : '';
           if (bridge) {
             bridge.textContainerUpgrade({
-              containerID: CONTAINER_ID,
-              containerName: CONTAINER_NAME,
-              content: displayText + (msg.total > 1 ? `\n[${msg.page}/${msg.total}]` : '')
+              containerID: CONTAINER_ID, containerName: CONTAINER_NAME,
+              content: (msg.text || '') + (msg.total > 1 ? `\n[${msg.page}/${msg.total}]` : '')
             }).catch(() => {});
           }
           break;
 
         case 'chat_update':
-          // New: add message to chat UI
-          if (msg.role && msg.text) {
-            addChatMessage(msg.role, msg.text);
-          }
+          if (msg.role && msg.text) addChatMessage(msg.role, msg.text);
           break;
 
         case 'clear':
@@ -566,45 +593,32 @@
 
         case 'error':
           addChatMessage('system', msg.message || 'Error');
+          stateBadge.classList.add('error');
           g2Show(msg.message || 'Error');
-          setTimeout(() => {
-            if (state !== 'LISTENING') {
-              setState('IDLE');
-            }
-          }, 3000);
+          setTimeout(() => { if (state !== 'LISTENING') setState('IDLE'); }, 3000);
           break;
 
         case 'state':
-          if (msg.state === 'IDLE') {
-            setState('IDLE');
-          }
+          if (msg.state === 'IDLE') setState('IDLE');
           break;
       }
     }
 
-    // ─── Utilities ───────────────────────────────────────────
-
     function uint8ToBase64(uint8) {
       let binary = '';
-      const len = uint8.byteLength;
-      for (let i = 0; i < len; i++) {
-        binary += String.fromCharCode(uint8[i]);
-      }
+      for (let i = 0; i < uint8.byteLength; i++) binary += String.fromCharCode(uint8[i]);
       return btoa(binary);
     }
 
-    // ─── Boot ────────────────────────────────────────────────
-
     async function main() {
-      log('Jarvis AI starting...');
-
+      log('Booting J.A.R.V.I.S...');
+      addChatMessage('system', 'Inizializzazione sistema...');
       try {
         await initBridge();
-        log('G2 bridge initialized');
+        log('Neural interface online');
       } catch (e) {
         log(`Bridge init failed: ${e.message}`, true);
       }
-
       connectWs();
     }
 

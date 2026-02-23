@@ -71,17 +71,17 @@ export class GlassesManager {
     return this.currentPage;
   }
 
-  // Format the full conversation history for display on glasses
+  // Format the full conversation history for display on glasses (HUD style)
   formatConversation(): string {
     if (this.chatHistory.length === 0) return '';
 
     return this.chatHistory.map(entry => {
       if (entry.role === 'user') {
-        return `> ${entry.text}`;
+        return `[YOU] ${entry.text}`;
       } else {
-        return entry.text;
+        return `[JARVIS] ${entry.text}`;
       }
-    }).join('\n---\n');
+    }).join('\n\n');
   }
 
   // Paginate the full conversation, keeping each Q&A together when possible
