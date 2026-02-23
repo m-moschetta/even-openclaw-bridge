@@ -1,6 +1,7 @@
 export declare const config: {
     port: number;
     openClawWs: string;
+    openClawPassword: string;
     openAiKey: string;
     maxRecordingMs: number;
     displayWidth: number;
