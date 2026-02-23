@@ -24,7 +24,12 @@ export declare class GlassesManager {
     getChatHistory(): ChatEntry[];
     getConnectedAt(): Date | null;
     getCurrentPage(): number;
+    static hudIdle(): string;
+    static hudListening(): string;
+    static hudProcessing(): string;
     formatConversation(): string;
+    formatWaiting(): string;
+    wrapPage(text: string, page: number, total: number): string;
     paginateConversation(): string[];
     goToLastPage(): {
         text: string;

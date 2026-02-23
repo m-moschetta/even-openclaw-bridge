@@ -1,4 +1,6 @@
 import { config } from './config.js';
+// HUD screen width in characters
+const HUD_W = 36;
 export class GlassesManager {
     ws = null;
     state = 'IDLE';
@@ -50,25 +52,73 @@ export class GlassesManager {
     getCurrentPage() {
         return this.currentPage;
     }
-    // Format the full conversation history for display on glasses (HUD style)
+    // ─── HUD Screens ────────────────────────────────
+    static hudIdle() {
+        return [
+            '\u250C' + '\u2500'.repeat(HUD_W) + '\u2510',
+            '\u2502' + center('J.A.R.V.I.S.', HUD_W) + '\u2502',
+            '\u2502' + center('', HUD_W) + '\u2502',
+            '\u2502' + center('\u25C9  SISTEMA ONLINE  \u25C9', HUD_W) + '\u2502',
+            '\u2502' + center('', HUD_W) + '\u2502',
+            '\u2502' + center('Tap per parlare', HUD_W) + '\u2502',
+            '\u2514' + '\u2500'.repeat(HUD_W) + '\u2518',
+        ].join('\n');
+    }
+    static hudListening() {
+        return [
+            '\u250C' + '\u2500'.repeat(HUD_W) + '\u2510',
+            '\u2502' + center('J.A.R.V.I.S.', HUD_W) + '\u2502',
+            '\u2502' + center('', HUD_W) + '\u2502',
+            '\u2502' + center('\u2588\u2588 REC \u2588\u2588', HUD_W) + '\u2502',
+            '\u2502' + center('((( ASCOLTO )))', HUD_W) + '\u2502',
+            '\u2502' + center('', HUD_W) + '\u2502',
+            '\u2502' + center('Tap per inviare', HUD_W) + '\u2502',
+            '\u2514' + '\u2500'.repeat(HUD_W) + '\u2518',
+        ].join('\n');
+    }
+    static hudProcessing() {
+        return [
+            '\u250C' + '\u2500'.repeat(HUD_W) + '\u2510',
+            '\u2502' + center('J.A.R.V.I.S.', HUD_W) + '\u2502',
+            '\u2502' + center('', HUD_W) + '\u2502',
+            '\u2502' + center('\u2591\u2592\u2593 ANALISI \u2593\u2592\u2591', HUD_W) + '\u2502',
+            '\u2502' + center('Elaborazione in corso...', HUD_W) + '\u2502',
+            '\u2502' + center('', HUD_W) + '\u2502',
+            '\u2514' + '\u2500'.repeat(HUD_W) + '\u2518',
+        ].join('\n');
+    }
+    // ─── Conversation formatting ────────────────────
     formatConversation() {
         if (this.chatHistory.length === 0)
             return '';
-        return this.chatHistory.map(entry => {
+        const header = '\u2500\u2500 JARVIS COMM LOG ' + '\u2500'.repeat(18);
+        const lines = [header];
+        for (const entry of this.chatHistory) {
             if (entry.role === 'user') {
-                return `> ${entry.text}`;
+                lines.push(`\u25B8 ${entry.text}`);
             }
             else {
-                return entry.text;
+                lines.push(entry.text);
             }
-        }).join('\n');
+            lines.push('');
+        }
+        return lines.join('\n');
     }
-    // Paginate the full conversation, keeping each Q&A together when possible
+    formatWaiting() {
+        const conv = this.formatConversation();
+        return conv + '\u2591\u2592\u2593 Elaboro...\u2593\u2592\u2591';
+    }
+    // Wrap the display page with a HUD footer showing page info
+    wrapPage(text, page, total) {
+        if (total <= 1)
+            return text;
+        const footer = `\u2500\u2500 [${page}/${total}] ` + '\u2500'.repeat(Math.max(0, 20));
+        return text + '\n' + footer;
+    }
     paginateConversation() {
         const text = this.formatConversation();
         return this.paginateText(text);
     }
-    // Go to the last page (most recent content)
     goToLastPage() {
         if (this.pages.length === 0)
             return null;
@@ -135,5 +185,13 @@ export class GlassesManager {
         this.lastResponse = '';
         this.chatHistory = [];
     }
+}
+// Helper: center text in a given width
+function center(text, width) {
+    if (text.length >= width)
+        return text.slice(0, width);
+    const left = Math.floor((width - text.length) / 2);
+    const right = width - text.length - left;
+    return ' '.repeat(left) + text + ' '.repeat(right);
 }
 //# sourceMappingURL=glasses-manager.js.map

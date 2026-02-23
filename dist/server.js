@@ -119,8 +119,8 @@ wss.on('connection', (ws, req) => {
     ws.on('error', (error) => {
         console.error('[WS] Error:', error);
     });
-    // Send welcome
-    sendStatus(ws, '🤖 Pronto');
+    // Send welcome HUD
+    sendStatus(ws, GlassesManager.hudIdle());
 });
 // Send helpers
 function sendStatus(ws, message) {
@@ -130,7 +130,9 @@ function sendError(ws, message) {
     ws.send(JSON.stringify({ type: 'error', message }));
 }
 function sendDisplay(ws, text, page, total) {
-    ws.send(JSON.stringify({ type: 'display', text, page, total }));
+    // Wrap with HUD page footer
+    const hudText = glassesManager.wrapPage(text, page, total);
+    ws.send(JSON.stringify({ type: 'display', text: hudText, page, total }));
 }
 function sendMic(ws, enabled) {
     ws.send(JSON.stringify({ type: 'mic', enabled }));
@@ -218,8 +220,8 @@ async function handleActivation(ws) {
     try {
         glassesManager.setState('LISTENING');
         audioProcessor.reset();
-        // 7.1 Immediate feedback - show something right away
-        sendStatus(ws, '🎤 Sto ascoltando...');
+        // 7.1 Immediate feedback - HUD listening screen
+        sendStatus(ws, GlassesManager.hudListening());
         sendMic(ws, true);
         // Safety timeout - max 30 seconds recording
         setTimeout(() => {
@@ -250,7 +252,7 @@ async function handleRecordingEnd(ws) {
     try {
         glassesManager.setState('TRANSCRIBING');
         sendMic(ws, false);
-        sendStatus(ws, '⏳ Elaboro...');
+        sendStatus(ws, GlassesManager.hudProcessing());
         // 7.4 Timeout handling - transcription
         let text;
         try {
@@ -300,8 +302,8 @@ async function handleRecordingEnd(ws) {
 async function processQuery(text, ws) {
     try {
         glassesManager.setState('WAITING');
-        // Show conversation so far + loading indicator at the bottom
-        const waitingText = glassesManager.formatConversation() + '\n...';
+        // Show conversation with HUD loading indicator
+        const waitingText = glassesManager.formatWaiting();
         glassesManager.paginateText(waitingText);
         const waitLast = glassesManager.goToLastPage();
         if (waitLast) {
@@ -341,7 +343,7 @@ async function processQuery(text, ws) {
             if (glassesManager.getState() === 'DISPLAYING') {
                 console.log('[ProcessQuery] Auto-reset after timeout');
                 glassesManager.setState('IDLE');
-                sendStatus(ws, '🤖 Pronto');
+                sendStatus(ws, GlassesManager.hudIdle());
             }
         }, 300000);
     }
@@ -378,7 +380,7 @@ async function handleExit(ws) {
             sendMic(ws, false);
         }
         sendClear(ws);
-        sendStatus(ws, '👋 Arrivederci');
+        sendStatus(ws, GlassesManager.hudIdle());
         glassesManager.reset();
         // Clear status after 2 seconds
         setTimeout(() => {
