@@ -1,4 +1,8 @@
 type State = 'IDLE' | 'LISTENING' | 'TRANSCRIBING' | 'WAITING' | 'DISPLAYING';
+interface ChatEntry {
+    role: 'user' | 'assistant';
+    text: string;
+}
 export declare class GlassesManager {
     private ws;
     private state;
@@ -7,6 +11,7 @@ export declare class GlassesManager {
     private lastTranscription;
     private lastResponse;
     private connectedAt;
+    private chatHistory;
     setConnection(ws: any): void;
     clearConnection(): void;
     getConnectedCount(): number;
@@ -16,8 +21,16 @@ export declare class GlassesManager {
     setLastTranscription(text: string): void;
     getLastResponse(): string;
     setLastResponse(text: string): void;
+    getChatHistory(): ChatEntry[];
     getConnectedAt(): Date | null;
     getCurrentPage(): number;
+    formatConversation(): string;
+    paginateConversation(): string[];
+    goToLastPage(): {
+        text: string;
+        page: number;
+        total: number;
+    } | null;
     paginateText(text: string): string[];
     nextPage(): {
         text: string;

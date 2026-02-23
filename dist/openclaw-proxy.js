@@ -2,16 +2,18 @@ import { config } from './config.js';
 export class OpenClawProxy {
     baseUrl;
     password;
+    sessionUser;
     constructor() {
         // Convert ws(s):// to http(s):// for the HTTP API
         this.baseUrl = config.openClawWs
             .replace(/^wss:\/\//, 'https://')
             .replace(/^ws:\/\//, 'http://');
         this.password = config.openClawPassword;
+        // Stable user ID so OpenClaw keeps the same session/conversation
+        this.sessionUser = 'jarvis-g2';
         console.log(`[OpenClaw] HTTP API: ${this.baseUrl}/v1/chat/completions`);
     }
     isConnected() {
-        // HTTP is stateless — always "connected" if configured
         return !!this.password;
     }
     async ask(text, onChunk) {
@@ -29,6 +31,7 @@ export class OpenClawProxy {
                 body: JSON.stringify({
                     model: 'openclaw',
                     stream: !!onChunk,
+                    user: this.sessionUser,
                     messages: [{ role: 'user', content: text }],
                 }),
                 signal: controller.signal,

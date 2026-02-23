@@ -3,6 +3,7 @@ import { config } from './config.js';
 export class OpenClawProxy {
   private baseUrl: string;
   private password: string;
+  private sessionUser: string;
 
   constructor() {
     // Convert ws(s):// to http(s):// for the HTTP API
@@ -10,12 +11,13 @@ export class OpenClawProxy {
       .replace(/^wss:\/\//, 'https://')
       .replace(/^ws:\/\//, 'http://');
     this.password = config.openClawPassword;
+    // Stable user ID so OpenClaw keeps the same session/conversation
+    this.sessionUser = 'jarvis-g2';
 
     console.log(`[OpenClaw] HTTP API: ${this.baseUrl}/v1/chat/completions`);
   }
 
   isConnected(): boolean {
-    // HTTP is stateless — always "connected" if configured
     return !!this.password;
   }
 
@@ -36,6 +38,7 @@ export class OpenClawProxy {
         body: JSON.stringify({
           model: 'openclaw',
           stream: !!onChunk,
+          user: this.sessionUser,
           messages: [{ role: 'user', content: text }],
         }),
         signal: controller.signal,

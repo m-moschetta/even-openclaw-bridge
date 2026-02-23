@@ -164,6 +164,10 @@ function sendClear(ws: any) {
   ws.send(JSON.stringify({ type: 'clear' }));
 }
 
+function sendChatUpdate(ws: any, role: 'user' | 'assistant', text: string) {
+  ws.send(JSON.stringify({ type: 'chat_update', role, text }));
+}
+
 async function handleGlassesMessage(message: any, ws: any) {
   try {
     switch (message.type) {
@@ -249,8 +253,9 @@ async function handleTouchbarEvent(event: string, ws: any) {
 }
 
 async function handleActivation(ws: any) {
-  if (glassesManager.getState() !== 'IDLE') {
-    console.log('[Activation] Ignored - not in IDLE state');
+  const currentState = glassesManager.getState();
+  if (currentState !== 'IDLE' && currentState !== 'DISPLAYING') {
+    console.log('[Activation] Ignored - state is', currentState);
     return;
   }
 
@@ -328,9 +333,14 @@ async function handleRecordingEnd(ws: any) {
 
     console.log('[RecordingEnd] Transcribed:', text);
     glassesManager.setLastTranscription(text);
+    sendChatUpdate(ws, 'user', text);
 
-    // Show transcription on glasses
-    sendDisplay(ws, `🗣️ ${text}`, 1, 1);
+    // Show conversation with new user message
+    glassesManager.paginateConversation();
+    const lastPage = glassesManager.goToLastPage();
+    if (lastPage) {
+      sendDisplay(ws, lastPage.text, lastPage.page, lastPage.total);
+    }
 
     await processQuery(text, ws);
 
@@ -346,34 +356,14 @@ async function processQuery(text: string, ws: any) {
     glassesManager.setState('WAITING');
     sendStatus(ws, '🤖 Rispondo...');
 
-    // 7.2 Streaming response - show words as they arrive
-    let displayedText = '';
-    let streamingStarted = false;
-
-    const onChunk = (chunk: string) => {
-      if (!streamingStarted) {
-        streamingStarted = true;
-        glassesManager.setState('DISPLAYING');
-      }
-      
-      displayedText += chunk;
-      
-      // Send incremental update for real-time feel
-      // Only paginate and send first page during streaming
-      const pages = glassesManager.paginateText(displayedText);
-      if (pages.length > 0 && glassesManager.getCurrentPage() === 0) {
-        sendDisplay(ws, pages[0], 1, Math.max(pages.length, 1));
-      }
-    };
-
     let response: string;
     try {
-      response = await openclawProxy.ask(text, onChunk);
+      response = await openclawProxy.ask(text);
     } catch (openclawError) {
       console.error('[ProcessQuery] OpenClaw error:', openclawError);
-      
+
       const errorMsg = openclawError instanceof Error ? openclawError.message : '';
-      
+
       if (errorMsg.includes('timeout')) {
         sendError(ws, '❌ OpenClaw lento - riprova');
       } else if (errorMsg.includes('connect')) {
@@ -381,30 +371,32 @@ async function processQuery(text: string, ws: any) {
       } else {
         sendError(ws, '❌ Errore risposta');
       }
-      
+
       glassesManager.setState('IDLE');
       return;
     }
 
     console.log('[ProcessQuery] Response:', response.substring(0, 100) + '...');
-    
+
     glassesManager.setLastResponse(response);
+    sendChatUpdate(ws, 'assistant', response);
     glassesManager.setState('DISPLAYING');
-    
-    // Send final paginated display
-    const pages = glassesManager.paginateText(response);
-    if (pages.length > 0) {
-      sendDisplay(ws, pages[0], 1, pages.length);
+
+    // Paginate the full conversation and show the last page
+    glassesManager.paginateConversation();
+    const lastPage = glassesManager.goToLastPage();
+    if (lastPage) {
+      sendDisplay(ws, lastPage.text, lastPage.page, lastPage.total);
     }
 
-    // 7.4 Auto-reset after display timeout (1 minute)
+    // Auto-reset after 5 minutes of inactivity
     setTimeout(() => {
       if (glassesManager.getState() === 'DISPLAYING') {
         console.log('[ProcessQuery] Auto-reset after timeout');
         glassesManager.setState('IDLE');
         sendStatus(ws, '🤖 Pronto');
       }
-    }, 60000);
+    }, 300000);
 
   } catch (error) {
     console.error('[ProcessQuery] Unexpected error:', error);

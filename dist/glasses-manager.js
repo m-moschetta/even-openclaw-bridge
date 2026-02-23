@@ -7,6 +7,7 @@ export class GlassesManager {
     lastTranscription = '';
     lastResponse = '';
     connectedAt = null;
+    chatHistory = [];
     setConnection(ws) {
         this.ws = ws;
         this.connectedAt = new Date();
@@ -31,20 +32,52 @@ export class GlassesManager {
     }
     setLastTranscription(text) {
         this.lastTranscription = text;
+        this.chatHistory.push({ role: 'user', text });
     }
     getLastResponse() {
         return this.lastResponse;
     }
     setLastResponse(text) {
         this.lastResponse = text;
-        this.paginateText(text);
-        this.currentPage = 0;
+        this.chatHistory.push({ role: 'assistant', text });
+    }
+    getChatHistory() {
+        return this.chatHistory;
     }
     getConnectedAt() {
         return this.connectedAt;
     }
     getCurrentPage() {
         return this.currentPage;
+    }
+    // Format the full conversation history for display
+    formatConversation() {
+        if (this.chatHistory.length === 0)
+            return '';
+        return this.chatHistory.map(entry => {
+            if (entry.role === 'user') {
+                return `\u25B6 ${entry.text}`; // ▶ for user
+            }
+            else {
+                return `${entry.text}`;
+            }
+        }).join('\n\n');
+    }
+    // Paginate the full conversation, showing latest content last
+    paginateConversation() {
+        const text = this.formatConversation();
+        return this.paginateText(text);
+    }
+    // Go to the last page (most recent content)
+    goToLastPage() {
+        if (this.pages.length === 0)
+            return null;
+        this.currentPage = this.pages.length - 1;
+        return {
+            text: this.pages[this.currentPage],
+            page: this.currentPage + 1,
+            total: this.pages.length
+        };
     }
     paginateText(text) {
         const charsPerLine = Math.floor(config.displayWidth / (config.fontSize * 0.6));
@@ -100,6 +133,7 @@ export class GlassesManager {
         this.currentPage = 0;
         this.lastTranscription = '';
         this.lastResponse = '';
+        this.chatHistory = [];
     }
 }
 //# sourceMappingURL=glasses-manager.js.map

@@ -1,6 +1,7 @@
 export declare class OpenClawProxy {
     private baseUrl;
     private password;
+    private sessionUser;
     constructor();
     isConnected(): boolean;
     ask(text: string, onChunk?: (chunk: string) => void): Promise<string>;
